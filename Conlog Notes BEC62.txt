@@ -1,0 +1,368 @@
+Message format:
+===============
+
+Messages for the BEC62 is sent at 38.4 kbps on 434.195MHz using GFSK (seem to have about 35kHz deviation). The format of individual messages are:
+
+ pp pp pp pp pp pp pp ss ss ss ss xx xx xx xx  
+
+Where:
+
+ pp pp pp pp pp pp pp     Preamble bytes (0xAAAAAAAA) added by radio
+ ss ss ss ss              Sync words (0xD3 0x91 0xD3 0x91) added by radio
+ xx xx xx xx              Meter serial number stored as a big-endian intege
+ rr rr rr rr rr rr ..     Request/response between meter and keypad, see section below
+ cc cc                    Two byte CRC for message data (meter serial+request/respone) added by radio
+
+Additonally PN9 data whitening is applied to the message before FEC encoding and interleaving - according to CC1101 standards.
+
+Request/response data format:
+=============================
+
+Req/Res below refers to the request and response for a specific numberic shortcode as specified in the BEC62 technical manual. Some
+shortcodes do net result in a message being sent and rather use stored values from a previous status message.
+
+In general the second nibble of the first request byte seems to indicate the number of data bytes response to return - but this is
+not universal. e.g. C1 / C2 / C3 ..  CA- return 1/2/3 .. 10 data bytes. This excludes the meter serial no and an extra (status?)
+byte in each message.
+
+The general sequence of messages would be:
+
+ 1. Keypad sends request message
+ 2. Meter sends ACK message after. ACK messages are in the form xx xx xx xx F6 01 20, where xx xx xx xx is the meter serial no.
+ 3. Meter sends respondse message after a processing delay.
+
+The keypad will repeatedly send the request message until it sees the ACK message. The ACK message itself is transmitted twice.
+Shorter responses seem to be sent multiple times.
+
+Request/response message pairs:
+===============================
+
+Req 1: C1 10 0D
+Res 1: 00 01 (latch)
+
+Req 4: (no msg) (from last status message)
+
+Req 5: C1 20 0A
+Res 5: 00 12 (rev 1, type 2)
+
+Req 6: C1 20 09
+Res 6: 00 01 (index 1)
+
+Req 7: C2 20 0C
+Res 7: 00 59 DC (max power in watts)
+
+Req 8: C2 20 14
+Res 8: 00 00 00 (tamper status 0)
+
+Req 9: (no msg??)
+Res 9: 
+
+Req 10: C2 20 0D
+Res 10: 00 59 DC (power in watts)
+
+Req 30: C3 20 16 
+Res 30: 00 00 02 62 (group 610 - big endian)
+
+Req 31: (no msg??)
+Res 31:
+ 
+Req 32: C2 10 02
+Res 32: 00 00 FF (25.5 -- 1/10 of KWh) 
+
+Req 33: C1 10 01
+Res 33: 00 32 (value of 50) 
+
+Req 35: C2 10 05
+Res 35: 00 00 00 (0 volt)
+
+Req 35 Menu 2: C2 10 06
+Res 35 Menu 2: 00 01 18 
+
+Req 37: C2 10 07
+Res 37: 00 03 E8 (100A -- 1/10 of A)
+
+Req 38: C1 15 23
+Res 38: 00 02 (value is 2)
+
+Req 39: (no msg)
+Res 39: 
+
+Req 40: C1 20 00 
+Res 40: 00 02 (version 2)
+
+Req 41: (no msg) (from pair message)
+Res 41: 
+
+Req 42: C1 00 DC 
+Res 42: 00 00 (230V)
+
+Req 50: C2 15 10 
+Res 50: 00 00 3C (0.6 KW -- 1/100 of KW)
+
+Req 70: C2 15 10
+Res 70: 00 00 3C (0.6 KW -- 1/100 of KW)
+Req 70l1: C2 15 60
+Res 70l1: 00 00 3C (0.6 KW -- 1/100 of KW)
+Req 70l2: C2 15 70
+Res 70l2: 00 00 3C (0.6 KW -- 1/100 of KW)
+Req 70l3: C2 15 80
+Res 70l3: 00 00 3C (0.6 KW -- 1/100 of KW)
+
+Req 71: C2 15 32 (note- shortcode first calls C2 20 0C before actual call)
+Res 71: 00 00 19 (2.5A -- 1/10th of A)
+Req 71l1: C2 15 61
+Res 71l1: 00 00 00 (0A -- 1/10th of A)
+Req 71l2: C2 15 71
+Res 71l2: 00 00 0F (1.5A -- 1/10th of A)
+Req 71l3: C2 15 81
+Res 71l3: 00 00 0F (1.5A -- 1/10th of A)
+ 
+Req 72l1: C2 15 62
+Res 72l1: 00 00 EC (236 -- value in volts)
+Req 72l2: C2 15 72
+Res 72l2: 00 00 EE (238 -- value in volts)
+Req 72l3: C2 15 82
+Res 72l3: 00 00 EE (238 -- value in volts)
+
+Req 73: CA 15 30
+Res 73: 00 59 DC 59 DC 00 AD 01 00 00 00
+
+Req 74: C2 10 53 
+Res 74: 00 01 0C (11d - unit is hours)
+Req 74menu2: C2 10 54
+Res 74menu2: 00 00 92 (6d 2h - unit is hours)
+
+Req 75: F0 01 20 PING(?) used to request signal strength response
+Res 75: F6 01 20 ACK
+
+Req 76: (no msg)
+Res 76: 
+
+Req 77: (no msg)
+Res 77: 
+
+Req 78: C1 FF FE
+Res 78: 00 10 (result 16)
+
+Req 100: (no msg)
+Res 100: 
+
+Req 101: (no msg)
+Res 101: 
+
+Req 102: C1 20 00
+Res 100: 00 02 (result 2) 
+
+Req 200: C4 10 77 
+Res 200: 00 00 00 0B 9E (297.4KWh - in 10th of KWh)
+
+Req 201: C3 10 76
+Res 201: 00 D8 0F EA (ID as 24 bit big-endian hex)
+
+Req 251m1: C1 10 57 
+Res 251m1: 00 00 
+Req 251m2: CA 10 58 
+Req 251m2: 00 69 60 41 11 80 55 51 01 66 22 (Digits as BCD values)
+Req 251m3: C4 10 59
+Req 251m3: 00 00 00 0B 9E (token value 297.4KWh - in 10th of KWh)
+
+Req 252m1: C1 10 5A 
+Req 252m2: CA 10 5B 
+Req 252m3: C4 10 5C
+
+Req 253m1: C1 10 5D 
+Req 253m2: CA 10 5E 
+Req 253m3: C4 10 5F
+
+Req 254m1: C1 10 60 
+Req 254m2: CA 10 61 
+Req 254m3: C4 10 62
+
+Req 255m1: C1 10 63
+Req 255m2: CA 10 64
+Req 255m3: C4 10 65
+
+Req 256m1: C1 10 66 
+Req 256m2: CA 10 67
+Req 256m3: C4 10 68
+
+Req 257m1: C1 10 69
+Req 257m2: CA 10 6A
+Req 257m3: C4 10 6B
+
+Req 258m1: C1 10 6C
+Req 258m2: CA 10 6D
+Req 258m3: C4 10 6E
+
+Req 259m1: C1 10 6F
+Req 259m2: CA 10 70
+Req 259m3: C4 10 71
+
+Req 260m1: C1 10 72
+Req 260m2: CA 10 73
+Req 260m3: C4 10 74
+
+Req 271m1: C4 10 55
+Res 271m1: 00 00 00 0B D0 (30.24kWh in 1/100 KWh)
+Req 271m2: C4 10 56
+Res 271m2: 00 00 01 62 60 (907.20kWh in 1/100 KWh) 
+
+Req 272m1: C4 10 50
+Res 272m1: 00 00 00 00 4D (0.774kWh in 1/100 KWh)
+Req 272m2: C4 10 51
+Res 272m2: 00 00 00 0D A8 (34.96kWh in 1/100 KWh) 
+Req 272m2: C4 10 52
+Res 272m2: 00 00 01 23 8F (746.39kWh in 1/100 KWh) 
+
+Req 274: C1 10 04 
+Res 274: 00 00
+
+
+Enter STS token sample #1:
+1. Send 3A 15 50 from remote
+2. Receive F6 01 20 from meter
+3. Send token value 00 12 34 56 78 90 09 87 65 43 21 to meter [12345678900987654321]
+4. send CA 15 50 from remote
+5. Read result from metmer (00 08 40 00 00 00 00 00 00 00 00=EEEEE error)
+
+Enter STS token sample #2:
+1. Send 3A 15 50 from remote
+2. Receive F6 01 20 from meter
+3. Send token value 00 11 22 33 44 55 66 77 88 99 00 [11223344556677889900]
+4. send CA 15 50 from remote
+5. Read result from metmer (00 0D 40 00 00 00 00 00 00 00 00=AAAAA error)
+
+Enter STS token sample #3 - valid token:
+1. Send 3A 15 50 from remote
+2. Receive F6 01 20 from meter
+3. Send token value  00 37 65 48 96 98 78 18 74 25 52 
+4. send CA 15 50 from remote
+5. Read result from metmer (00 01 00 00 00 05 CF 00 00 00 00= 148.7 KWh credit- value in 1/10 kWh)
+
+Enter STS token sample #4 - reenter previous token:
+1. Send 3A 15 50 from remote
+2. Receive F6 01 20 from meter
+3. Send token value  00 37 65 48 96 98 78 18 74 25 52 
+4. send CA 15 50 from remote
+5. Read result from metmer (00 0A 00 00 00 05 CF 00 00 00 00= DDDDDD error)
+
+
+Get meter info / pairing:
+=========================
+
+1. Remote sends 56 01 20 (get meter info)
+2. Meter sends 00 02 4C 54 02 4C 54 00 00 68 A2 01 50 59 DC 01 26 00 01 A0 A0 80 00 00 00 00 00 00 00 00 00 05 12 00 xx xx xx xx 00 07
+                  ******** meter/user total - 1/10 of kWh
+                           ******** meter/user total (other one)
+                                    ***** unknown
+                                          ***** Current credit kWh/100 (with unknown above = 32 bit?)
+                                                ***** Current power consumption (power in 1/100 kW)
+                                                      ***** Maximum allowed power (power in watts)
+                                                               ** Status register (tamper, commission, etc)
+                                                                  ***** Unknown
+                                                                                                            ***** Meter software version no (BCD)
+3. Remote sends C1 15 23
+4. Receive F6 01 20 from meter
+4. (While later) receive 00 02 from meter
+
+
+Actual message flow for two recharge tokens:
+============================================
+
+Recharge #1: PIN 2114 2169 3323 8202 4634 for 257.9kWh
+
+  95 RSSI 187 RX[7] xx xx xx xx 3A 15 50
+  96 RSSI 178 RX[7] xx xx xx xx 3A 15 50
+  97 RSSI 184 RX[7] xx xx xx xx 3A 15 50
+  98 RSSI 173 RX[7] xx xx xx xx 3A 15 50
+  99 RSSI 117 RX[7] xx xx xx xx F6 01 20
+ 100 RSSI 117 RX[7] xx xx xx xx F6 01 20
+ 101 RSSI 195 RX[15] xx xx xx xx 00 21 14 21 69 33 23 82 02 46 34
+ 102 RSSI 177 RX[15] xx xx xx xx 00 21 14 21 69 33 23 82 02 46 34
+ 103 RSSI 194 RX[15] xx xx xx xx 00 21 14 21 69 33 23 82 02 46 34
+ 104 RSSI 175 RX[15] xx xx xx xx 00 21 14 21 69 33 23 82 02 46 34
+ 105 RSSI 117 RX[7] xx xx xx xx F6 01 20
+ 106 RSSI 116 RX[7] xx xx xx xx F6 01 20
+ 107 RSSI 115 RX[7] xx xx xx xx F6 01 20
+ 108 RSSI 176 RX[7] xx xx xx xx CA 15 50
+ 109 RSSI 177 RX[7] xx xx xx xx CA 15 50
+ 110 RSSI 175 RX[7] xx xx xx xx CA 15 50
+ 111 RSSI 191 RX[7] xx xx xx xx CA 15 50
+ 112 RSSI 115 RX[7] xx xx xx xx F6 01 20
+ 113 RSSI 115 RX[7] xx xx xx xx F6 01 20
+ 114 RSSI 114 RX[15] xx xx xx xx 00 01 00 00 00 0A 13 00 00 00 00
+ 115 RSSI 115 RX[15] xx xx xx xx 00 01 00 00 00 0A 13 00 00 00 00
+ 116 RSSI 115 RX[15] xx xx xx xx 00 01 00 00 00 0A 13 00 00 00 00
+ 117 RSSI 116 RX[15] xx xx xx xx 00 01 00 00 00 0A 13 00 00 00 00
+ 118 RSSI 192 RX[7] xx xx xx xx 56 01 20
+ 119 RSSI 172 RX[7] xx xx xx xx 56 01 20
+ 120 RSSI 192 RX[7] xx xx xx xx 56 01 20
+ 121 RSSI 173 RX[7] xx xx xx xx 56 01 20
+ 122 RSSI 190 RX[7] xx xx xx xx 56 01 20
+ 123 RSSI 175 RX[7] xx xx xx xx 56 01 20
+ 124 RSSI 115 RX[44] xx xx xx xx 00 02 6C 5A 02 6C 5A 00 00 90 28 01 50 59 DC 01 26 00 01 A0 A0 80 00 00 00 00 00 00 00 00 00 05 12 00 xx xx xx xx 00 07
+ 125 RSSI 175 RX[7] xx xx xx xx C1 15 23
+ 126 RSSI 193 RX[7] xx xx xx xx C1 15 23
+ 127 RSSI 174 RX[7] xx xx xx xx C1 15 23
+ 128 RSSI 193 RX[7] xx xx xx xx C1 15 23
+ 129 RSSI 192 RX[7] xx xx xx xx C1 15 23
+ 130 RSSI 177 RX[7] xx xx xx xx C1 15 23
+ 131 RSSI 175 RX[7] xx xx xx xx C1 15 23
+ 132 RSSI 196 RX[7] xx xx xx xx C1 15 23
+ 133 RSSI 174 RX[7] xx xx xx xx C1 15 23
+ 134 RSSI 192 RX[7] xx xx xx xx C1 15 23
+ 135 RSSI 176 RX[7] xx xx xx xx C1 15 23
+ 136 RSSI 115 RX[7] xx xx xx xx F6 01 20
+ 137 RSSI 115 RX[7] xx xx xx xx F6 01 20
+ 138 RSSI 116 RX[6] xx xx xx xx 00 02
+ 139 RSSI 117 RX[6] xx xx xx xx 00 02
+ 140 RSSI 116 RX[6] xx xx xx xx 00 02
+ 141 RSSI 118 RX[6] xx xx xx xx 00 02
+
+
+Recharge #2: PIN 4018 9657 1464 5149 1514 for 197.6kWh
+
+ 167 RSSI 195 RX[7] xx xx xx xx 3A 15 50
+ 168 RSSI 191 RX[7] xx xx xx xx 3A 15 50
+ 169 RSSI 193 RX[7] xx xx xx xx 3A 15 50
+ 170 RSSI 194 RX[7] xx xx xx xx 3A 15 50
+ 171 RSSI 187 RX[7] xx xx xx xx 3A 15 50
+ 172 RSSI 185 RX[7] xx xx xx xx 3A 15 50
+ 173 RSSI 197 RX[7] xx xx xx xx 3A 15 50
+ 174 RSSI 191 RX[7] xx xx xx xx 3A 15 50
+ 175 RSSI 112 RX[7] xx xx xx xx F6 01 20
+ 176 RSSI 113 RX[7] xx xx xx xx F6 01 20
+ 177 RSSI 194 RX[15] xx xx xx xx 00 40 18 96 57 14 64 51 49 15 14
+ 178 RSSI 194 RX[15] xx xx xx xx 00 40 18 96 57 14 64 51 49 15 14
+ 179 RSSI 184 RX[15] xx xx xx xx 00 40 18 96 57 14 64 51 49 15 14
+ 180 RSSI 184 RX[15] xx xx xx xx 00 40 18 96 57 14 64 51 49 15 14
+ 181 RSSI 116 RX[7] xx xx xx xx F6 01 20
+ 182 RSSI 114 RX[7] xx xx xx xx F6 01 20
+ 183 RSSI 116 RX[7] xx xx xx xx F6 01 20
+ 184 RSSI 116 RX[7] xx xx xx xx F6 01 20
+ 185 RSSI 180 RX[7] xx xx xx xx CA 15 50
+ 186 RSSI 117 RX[7] xx xx xx xx F6 01 20
+ 187 RSSI 114 RX[7] xx xx xx xx F6 01 20
+ 188 RSSI 113 RX[15] xx xx xx xx 00 01 00 00 00 07 B8 00 00 00 00
+ 189 RSSI 116 RX[15] xx xx xx xx 00 01 00 00 00 07 B8 00 00 00 00
+ 190 RSSI 114 RX[15] xx xx xx xx 00 01 00 00 00 07 B8 00 00 00 00
+ 191 RSSI 114 RX[15] xx xx xx xx 00 01 00 00 00 07 B8 00 00 00 00
+ 192 RSSI 197 RX[7] xx xx xx xx 56 01 20
+ 193 RSSI 119 RX[44] xx xx xx xx 00 02 6C 5D 02 6C 5D 00 00 DD 3C 01 50 59 DC 01 26 00 01 A0 A0 80 00 00 00 00 00 00 00 00 00 05 12 00 xx xx xx xx 00 07
+ 194 RSSI 187 RX[7] xx xx xx xx C1 15 23
+ 195 RSSI 186 RX[7] xx xx xx xx C1 15 23
+ 196 RSSI 187 RX[7] xx xx xx xx C1 15 23
+ 197 RSSI 194 RX[7] xx xx xx xx C1 15 23
+ 198 RSSI 193 RX[7] xx xx xx xx C1 15 23
+ 199 RSSI 185 RX[7] xx xx xx xx C1 15 23
+ 200 RSSI 187 RX[7] xx xx xx xx C1 15 23
+ 201 RSSI 185 RX[7] xx xx xx xx C1 15 23
+ 202 RSSI 186 RX[7] xx xx xx xx C1 15 23
+ 203 RSSI 184 RX[7] xx xx xx xx C1 15 23
+ 204 RSSI 183 RX[7] xx xx xx xx C1 15 23
+ 205 RSSI 118 RX[7] xx xx xx xx F6 01 20
+ 206 RSSI 118 RX[7] xx xx xx xx F6 01 20
+ 207 RSSI 118 RX[6] xx xx xx xx 00 02
+ 208 RSSI 119 RX[6] xx xx xx xx 00 02
+ 209 RSSI 120 RX[6] xx xx xx xx 00 02
+ 210 RSSI 118 RX[6] xx xx xx xx 00 02
